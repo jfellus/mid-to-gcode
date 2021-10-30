@@ -1,6 +1,6 @@
 from mido import MidiFile
 from audiolazy import lazy_midi
-
+import sys
 
 ZLOW = 1
 ZHIGH = 0
@@ -63,6 +63,9 @@ def load_midi(f):
             t, pitch, velo = msg.bytes()
             dt = msg.time
             out.append((dt, pitch))
+
+    if len(sys.argv)>1:
+        out = [(100, NOTE_TO_PITCH[k]) for k in PITCHES]
     return out
 
 
@@ -73,7 +76,7 @@ def t2x(t): return t * AX + BX
 def p2y(p): 
     try: return PITCH_TO_Y[p] * AY + BY
     except: 
-        print("WARNING : no such note : ", p)
+        print("WARNING : no such note : ", p, file=sys.stderr)
         return p2y(NOTE_TO_PITCH["C2"])
 
 SPEED = 400 # mm/min
@@ -86,7 +89,6 @@ commands.append(f'G01 X{x} Y{y} Z{z} F{SPEED}')
 
 
 for dt, pitch in load_midi('test.mid'):
-    print(dt, pitch)
     t += dt
     x = t2x(t)
     y = p2y(pitch)
