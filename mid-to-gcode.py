@@ -1,15 +1,23 @@
+#!/usr/bin/env python3
+
 from mido import MidiFile
 from audiolazy import lazy_midi
+import GRBL
+import time
 import sys
 
-ZLOW = 1
+grbl = GRBL.GRBL(port = "/dev/ttyUSB0")
+
+ZLOW = -1
 ZHIGH = 0
 
-AX = 1
-BX = 0
 
-AY = 1
-BY = 0
+XMIN = 0
+XMAX = 50
+YMIN = 0
+YMAX = 50
+
+MAX_MS = 10000
 
 PITCHES = [
     "C2",
@@ -72,14 +80,15 @@ def load_midi(f):
 
 commands = []
 
-def t2x(t): return t * AX + BX
+def t2x(t): return t/MAX_MS * (XMAX-XMIN) + XMIN
 def p2y(p): 
-    try: return PITCH_TO_Y[p] * AY + BY
+    try: 
+        return PITCH_TO_Y[p]/len(PITCHES) * (YMAX-YMIN) + YMIN
     except: 
         print("WARNING : no such note : ", p, file=sys.stderr)
         return p2y(NOTE_TO_PITCH["C2"])
 
-SPEED = 400 # mm/min
+SPEED = 1000 # mm/min
 
 t = 0
 x = t2x(0)
@@ -92,10 +101,17 @@ for dt, pitch in load_midi('test.mid'):
     t += dt
     x = t2x(t)
     y = p2y(pitch)
-    commands.append(f'G01 X{x} Y{y} Z{z} F{SPEED}')
+    commands.append(f'G01 X{y} Y{x} Z{z} F{SPEED}')
     z = ZLOW
-    commands.append(f'G01 X{x} Y{y} Z{z} F{SPEED}')
+    commands.append(f'G01 X{y} Y{x} Z{z} F{SPEED}')
     z = ZHIGH
-    commands.append(f'G01 X{x} Y{y} Z{z} F{SPEED}')
+    commands.append(f'G01 X{y} Y{x} Z{z} F{SPEED}')
 
-print("\n".join(commands))
+
+grbl.cmd("G28")
+for c in commands:
+    print(c)
+    grbl.cmd(c)
+    time.sleep(.1)
+
+commands.append(f'G01 X0 Y0 Z0 F{SPEED}')
